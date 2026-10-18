@@ -1,0 +1,21 @@
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.jvm.toolchain.JvmVendorSpec
+
+gradle.projectsLoaded {
+    rootProject.allprojects {
+        java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(21)
+                vendor = JvmVendorSpec.any()
+            }
+        }
+    }
+}
+
+// Configure toolchain for daemon
+gradle.toolchain {
+    jvm {
+        languageVersion = JavaLanguageVersion.of(21)
+        vendor = JvmVendorSpec.any()
+    }
+}

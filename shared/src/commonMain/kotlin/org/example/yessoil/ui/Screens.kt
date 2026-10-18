@@ -60,6 +60,17 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
+
+private fun format1f(value: Float): String {
+    val rounded = (value * 10).roundToInt() / 10.0
+    return rounded.toString()
+}
+
+private fun format2f(value: Float): String {
+    val rounded = (value * 100).roundToInt() / 100.0
+    return rounded.toString()
+}
 
 @Composable
 fun DashboardScreen(vm: SoilViewModel, padding: PaddingValues) {
@@ -79,13 +90,13 @@ fun DashboardScreen(vm: SoilViewModel, padding: PaddingValues) {
             Text("ค่าดินล่าสุด", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                MetricCard("pH", "%.1f".format(r.ph), "", Icons.Default.Science, Color(0xFF6E56B5), Modifier.weight(1f))
-                MetricCard("EC", "%.2f".format(r.ec), "dS/m", Icons.Default.Eco, Color(0xFF2C8A72), Modifier.weight(1f))
+                MetricCard("pH", format1f(r.ph), "", Icons.Default.Science, Color(0xFF6E56B5), Modifier.weight(1f))
+                MetricCard("EC", format2f(r.ec), "dS/m", Icons.Default.Eco, Color(0xFF2C8A72), Modifier.weight(1f))
             }
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 MetricCard("ความชื้น", "${r.moisture.toInt()}", "%", Icons.Default.WaterDrop, Color(0xFF368CC1), Modifier.weight(1f))
-                MetricCard("อุณหภูมิ", "%.1f".format(r.temperature), "°C", Icons.Default.Thermostat, Color(0xFFE4773F), Modifier.weight(1f))
+                MetricCard("อุณหภูมิ", format1f(r.temperature), "°C", Icons.Default.Thermostat, Color(0xFFE4773F), Modifier.weight(1f))
             }
         }
         item {
@@ -147,7 +158,7 @@ fun FieldScreen(vm: SoilViewModel, padding: PaddingValues) {
     val currentPh = vm.readings.ph
     LazyColumn(contentPadding = padding, modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { ScreenHeader("แปลงเกษตรของฉัน", "ติดตามข้อมูลจากทุกจุดวัดในแปลง") }
-        item { Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF244B3D))) { Column(Modifier.padding(18.dp)) { Text("ค่าปัจจุบันจากฐานข้อมูล", color = Color.White); Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) { Text("ความชื้น  ${currentMoisture.toInt()}%", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold); Text("pH  %.1f".format(currentPh), color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) } } } }
+        item { Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF244B3D))) { Column(Modifier.padding(18.dp)) { Text("ค่าปัจจุบันจากฐานข้อมูล", color = Color.White); Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) { Text("ความชื้น  ${currentMoisture.toInt()}%", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold); Text("pH  ${format1f(currentPh)}", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) } } } }
         item { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) { Text("จุดวัดในแปลง (${vm.points.size})", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold); IconButton(onClick = { showDialog = true }) { Icon(Icons.Default.Add, "เพิ่มจุดวัด", tint = MaterialTheme.colorScheme.primary) } } }
         items(vm.points, key = { it.id }) { point -> Card { Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.LocationOn, "ตำแหน่ง", tint = MaterialTheme.colorScheme.primary); Column(Modifier.weight(1f).padding(start = 12.dp)) { Text(point.name, fontWeight = FontWeight.SemiBold); Text("pH ${point.ph}  •  ความชื้น ${point.moisture}%", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); if (point.createdAt.isNotBlank()) Text("บันทึกเมื่อ ${point.createdAt.replace('T', ' ').take(16)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }; Icon(Icons.Default.CheckCircle, "พร้อมใช้งาน", tint = Color(0xFF2E9A67)) } } }
         item { OutlinedButton(onClick = { showDialog = true }, modifier = Modifier.fillMaxWidth().height(50.dp)) { Icon(Icons.Default.Add, "เพิ่ม"); Text("  เพิ่มจุดวัดใหม่") } }

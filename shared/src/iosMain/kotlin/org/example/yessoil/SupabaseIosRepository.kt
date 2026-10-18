@@ -1,15 +1,17 @@
 package org.example.yessoil
 
-import io.github.jan.supabase.createSupabaseClient
-import io.github.jan.supabase.postgrest.Postgrest
-import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.postgrest.query.Order
+import io.ktor.client.*
+import io.ktor.client.call.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.json.Json
 import org.example.yessoil.ui.FieldPoint
 import org.example.yessoil.ui.SensorReadingUpdate
 import org.example.yessoil.ui.SoilReadings
@@ -18,11 +20,17 @@ private const val SUPABASE_URL = "https://ilwlyywnmqpgxljcjgfm.supabase.co"
 private const val SUPABASE_PUBLISHABLE_KEY = "sb_publishable_7j_H91COaBOICgf1jmTS2g_SUzEoeBz"
 private const val DEVICE_ID = "farm01"
 
-private val supabaseClient = createSupabaseClient(
-    supabaseUrl = SUPABASE_URL,
-    supabaseKey = SUPABASE_PUBLISHABLE_KEY,
-) {
-    install(Postgrest)
+private val json = Json { ignoreUnknownKeys = true }
+
+private val httpClient = HttpClient()
+
+private fun HttpRequestBuilder.supabaseHeaders() {
+    headers {
+        append(HttpHeaders.Authorization, "Bearer $SUPABASE_PUBLISHABLE_KEY")
+        append("apikey", SUPABASE_PUBLISHABLE_KEY)
+        append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+        append("Prefer", "return=representation")
+    }
 }
 
 @Serializable
@@ -61,14 +69,11 @@ object SupabaseIosRepository {
         var lastRecordedAt: String? = null
         while (true) {
             try {
-                val latest = supabaseClient.postgrest["sensor_readings"]
-                    .select {
-                        eq("device_id", DEVICE_ID)
-                        order(column = "recorded_at", order = Order.DESCENDING)
-                        limit(count = 1)
-                    }
-                    .decodeList<SensorReadingRecord>()
-                    .firstOrNull()
+                val url = "$SUPABASE_URL/rest/v1/sensor_readings?device_id=eq.$DEVICE_ID&order=recorded_at.desc&limit=1"
+                val response: HttpResponse = httpClient.get(url) { supabaseHeaders() }
+                val body = response.bodyAsText()
+                val records = json.decodeFromString<List<SensorReadingRecord>>(body)
+                val latest = records.firstOrNull()
 
                 latest?.let { record ->
                     if (!loadedInitialReading || record.recordedAt != lastRecordedAt) {
@@ -91,23 +96,30 @@ object SupabaseIosRepository {
         }
     }
 
-    suspend fun loadPoints(): List<FieldPoint> =
-        supabaseClient.postgrest["field_points"]
-            .select { order(column = "created_at", order = Order.DESCENDING) }
-            .decodeList<FieldPointRecord>()
-            .map { it.toFieldPoint() }
+    suspend fun loadPoints(): List<FieldPoint> {
+        val url = "$SUPABASE_URL/rest/v1/field_points?order=created_at.desc"
+        val response: HttpResponse = httpClient.get(url) { supabaseHeaders() }
+        val body = response.bodyAsText()
+        val records = json.decodeFromString<List<FieldPointRecord>>(body)
+        return records.map { it.toFieldPoint() }
+    }
 
-    suspend fun addPoint(name: String, readings: SoilReadings): FieldPoint =
-        supabaseClient.postgrest["field_points"]
-            .insert(
-                FieldPointInsert(
-                    name = name,
-                    moisture = readings.moisture.toDouble(),
-                    ph = readings.ph.toDouble(),
-                ),
-            )
-            .decodeSingle<FieldPointRecord>()
-            .toFieldPoint()
+    suspend fun addPoint(name: String, readings: SoilReadings): FieldPoint {
+        val insert = FieldPointInsert(
+            name = name,
+            moisture = readings.moisture.toDouble(),
+            ph = readings.ph.toDouble(),
+        )
+        val url = "$SUPABASE_URL/rest/v1/field_points"
+        val response: HttpResponse = httpClient.post(url) {
+            supabaseHeaders()
+            contentType(ContentType.Application.Json)
+            setBody(json.encodeToString(insert))
+        }
+        val body = response.bodyAsText()
+        val record = json.decodeFromString<FieldPointRecord>(body)
+        return record.toFieldPoint()
+    }
 
     private fun SensorReadingRecord.toSoilReadings() = SoilReadings(
         ph = ph.toFloat(),
